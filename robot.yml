@@ -1,0 +1,5 @@
+robot:
+  name: nytimes_robot
+  tasks:
+    - name: nytimes_scraper_task
+      file: nytimes_scraper.py
