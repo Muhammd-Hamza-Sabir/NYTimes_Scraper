@@ -1,5 +1,0 @@
-robot:
-  name: nytimes_robot
-  tasks:
-    - name: nytimes_scraper_task
-      file: tasks/nytimes_scraper_task.robot.yaml

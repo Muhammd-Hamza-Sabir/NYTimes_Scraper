@@ -20,13 +20,19 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.keys import Keys
 import requests
 
+from config import OUTPUT, search_phrase, news_category, num_months
+
 
 # In[42]:
 
 
 class NYTimesScraper:
-    def __init__(self, config):
-        self.config = config
+    def __init__(self):
+        #self.config = config
+        self.OUTPUT = OUTPUT
+        self.search_phrase = search_phrase
+        self.news_category = news_category
+        self.num_months = num_months
         self.date_pattern = r"/(\d{4}/\d{2}/\d{2})/"
         self.money_pattern = r'(\$\d+(\.\d+)?|\$\d{1,3}(,\d{3})*(\.\d+)?|\d+(\.\d+)? (dollars|USD))'
         self.df = pd.DataFrame()
@@ -34,7 +40,7 @@ class NYTimesScraper:
         
     def subtract_months_from_current_date(self):
         current_date = datetime.now()
-        new_date = current_date - relativedelta(months=self.config['num_months'])
+        new_date = current_date - relativedelta(months=self.num_months)
         return new_date
 
     
@@ -60,7 +66,7 @@ class NYTimesScraper:
         try:
             driver.find_element(by='xpath', value='//div[@class="css-10488qs"]/button[@class="css-tkwi90 e1iflr850"]').click()
             search_box = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//div[@id="search-input"]/form[@action="/search"]/div[@class="css-1jl66k3"]/input[@data-testid="search-input"]')))
-            search_box.send_keys(self.config['search_phrase'])
+            search_box.send_keys(self.search_phrase)
             search_box.send_keys(Keys.RETURN)
         except NoSuchElementException as e:
             print("Error: Search box not found. Check if the website structure has changed.", e)
@@ -77,7 +83,7 @@ class NYTimesScraper:
             for cat in categories:
                 # Use JavaScript to get the direct text content of the span element
                 category_text = driver.execute_script('return arguments[0].firstChild.textContent', cat)
-                if category_text in self.config['news_category']:
+                if category_text in self.news_category:
                     cat.click()
 
             # Wait for the sorting dropdown to be present and click on it
@@ -155,9 +161,10 @@ class NYTimesScraper:
         
     def download_image(self, img_url):
         try:
+            img_folder = os.path.join(self.OUTPUT, "downloaded_imgs")
             # Create a new folder named "downloaded_imgs" if it doesn't exist
-            if not os.path.exists("downloaded_imgs"):
-                os.makedirs("downloaded_imgs")
+            if not os.path.exists(img_folder):
+                os.makedirs(img_folder)
                 
             response = requests.get(img_url, stream=True)
             response.raise_for_status()
@@ -166,7 +173,7 @@ class NYTimesScraper:
             file_name = img_url.split("/")[-1]
 
             # Combine the new folder path and filename
-            file_path = os.path.join("downloaded_imgs", file_name)
+            file_path = os.path.join(img_folder, file_name)
 
             with open(file_path, 'wb') as file:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -186,11 +193,11 @@ class NYTimesScraper:
     
     def process_data(self):
         self.df['contains_money'] = self.df['titles'].str.cat(self.df['descriptions'], sep=' ').apply(self.contains_money)
-        self.df['count_search_phrase'] = (self.df['titles'].str.contains(self.config['search_phrase'], case=False).astype(int) +
-                                          self.df['descriptions'].str.contains(self.config['search_phrase'], case=False).astype(int))
+        self.df['count_search_phrase'] = (self.df['titles'].str.contains(self.search_phrase, case=False).astype(int) +
+                                          self.df['descriptions'].str.contains(self.search_phrase, case=False).astype(int))
 
     def save_to_excel(self):
-        self.df.to_excel("nytimes_data.xlsx", index=False)
+        self.df.to_excel(os.path.join(self.OUTPUT, "nytimes_data.xlsx"), index=False)
 
         
     def run(self):
@@ -226,14 +233,15 @@ class NYTimesScraper:
 
 if __name__ == "__main__":
 
-    # Determine the path to the config.json file
-    config_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data", "config.json")
+    # # Determine the path to the config.json file
+    # config_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "config.json")
 
-    # Read JSON data from the file
-    with open(config_file_path, "r") as file:
-        config_data = json.load(file)
+    # # Read JSON data from the file
+    # with open(config_file_path, "r") as file:
+    #     config_data = json.load(file)
 
-    scraper = NYTimesScraper(config_data)
+
+    scraper = NYTimesScraper()
     scraper.run()
 
 
